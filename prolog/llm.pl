@@ -30,10 +30,22 @@ different API adjust llm_request_body/2 or llm_extract_text/2.
 %   Output with the assistant's response text.
 
 llm(Input, Output) :-
+    (   var(Input)
+    ->  ensure_prompt(Output, Target),
+        generate_prompt(Target, Prompt),
+        Input = Prompt,
+        constrained_prompt(Target, Prompt, PromptWithConstraint),
+        llm_prompt_text(PromptWithConstraint, Text),
+        unify_text(Text, Output)
+    ;   llm_prompt_text(Input, Text),
+        unify_text(Text, Output)
+    ).
+
+llm_prompt_text(Input, Text) :-
     ensure_prompt(Input, Prompt),
     llm_request_body(Prompt, Body),
     llm_post_json(Body, Response),
-    llm_extract_text(Response, Output).
+    llm_extract_text(Response, Text).
 
 ensure_prompt(Input, Prompt) :-
     (   string(Input)
@@ -79,6 +91,25 @@ handle_status(Status, Data, Response) :-
     Response = Data.
 handle_status(Status, Data, _) :-
     throw(error(llm_http_error(Status, Data), _)).
+
+unify_text(Text, Output) :-
+    (   var(Output)
+    ->  Output = Text
+    ;   ensure_prompt(Output, Expected),
+        Expected = Text
+    ).
+
+generate_prompt(Target, Prompt) :-
+    format(string(Request),
+           "Provide a single user prompt that would make you reply with the exact text \"~w\". Return only the prompt.",
+           [Target]),
+    llm_prompt_text(Request, Suggestion),
+    ensure_prompt(Suggestion, Prompt).
+
+constrained_prompt(Target, Prompt, FinalPrompt) :-
+    format(string(FinalPrompt),
+           "You must answer ONLY with the exact text \"~w\" (case sensitive, no punctuation or extra words). Now respond to the following prompt:\n\n~w",
+           [Target, Prompt]).
 
 llm_endpoint(URL) :-
     (   getenv('LLM_API_URL', URL), URL \= ''

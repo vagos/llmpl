@@ -25,9 +25,22 @@ swipl
 ?- [prolog/llm].
 ?- llm("Say hello in French.", Output).
 Output = "Bonjour !".
+
+?- llm(Prompt, "Dog").
+Prompt = "Answer the question with the word \"Dog\" only. What animal is man's best friend?",
+...
 ```
 
 The request body is OpenAI-compatible (`{model: ..., messages: [...]}`) and
 can be tweaked inside `llm_request_body/2`. Likewise, parsing logic can be
 adjusted by editing `llm_extract_text/2` if you need to support a different
 response format.
+
+### Reverse prompts
+
+If you call `llm/2` with an unbound first argument and a concrete response,
+the library first asks the LLM to suggest a prompt that would (ideally)
+produce that response, binds it to your variable, and then sends a *second*
+request that wraps the suggested prompt in a hard constraint (`"answer only
+with ..."`). 
+This costs two API calls and is still best-effort; the model may ignore the constraint, in which case the predicate simply fails.
