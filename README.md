@@ -1,5 +1,7 @@
 # LLM Prolog Library
 
+> Use LLMs from inside Prolog!
+
 A minimal SWI-Prolog helper that exposes `llm/2`. The predicate posts a
 prompt to an HTTP LLM endpoint and unifies the model's response text
 with the second argument.
