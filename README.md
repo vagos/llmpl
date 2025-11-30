@@ -1,10 +1,10 @@
-# LLM Prolog Library
+# pllm
 
-> Use LLMs from inside Prolog!
+> Use LLMs inside Prolog!
 
-A minimal SWI-Prolog helper that exposes `llm/2`. The predicate posts a
-prompt to an HTTP LLM endpoint and unifies the model's response text
-with the second argument.
+`pllm` is a minimal SWI-Prolog helper that exposes `llm/2`.
+The predicate posts a prompt to an HTTP LLM endpoint and unifies the model's
+response text with the second argument.
 
 ## Configuration
 
@@ -29,7 +29,7 @@ swipl
 Output = "Bonjour !".
 
 ?- llm(Prompt, "Dog").
-Prompt = "Answer the question with the word \"Dog\" only. What animal is man's best friend?",
+Prompt = "What animal is man's best friend?",
 ...
 ```
 
@@ -43,6 +43,5 @@ response format.
 If you call `llm/2` with an unbound first argument and a concrete response,
 the library first asks the LLM to suggest a prompt that would (ideally)
 produce that response, binds it to your variable, and then sends a *second*
-request that wraps the suggested prompt in a hard constraint (`"answer only
-with ..."`). 
+request that wraps the suggested prompt in a hard constraint (`"answer only with ..."`). 
 This costs two API calls and is still best-effort; the model may ignore the constraint, in which case the predicate simply fails.
