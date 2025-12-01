@@ -1,4 +1,4 @@
-# pllm
+# llmpl
 
 > Use LLMs inside Prolog!
 
