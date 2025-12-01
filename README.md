@@ -6,6 +6,12 @@
 The predicate posts a prompt to an HTTP LLM endpoint and unifies the model's
 response text with the second argument.
 
+## Installation
+
+```sh
+?- pack_install(pllm).
+```
+
 ## Configuration
 
 Set the following environment variables: 
@@ -19,7 +25,7 @@ Set the following environment variables:
 
 ## Usage
 
-```bash
+```sh
 # Fill in .env with your settings
 set -a && souce .env && set +a
 swipl
