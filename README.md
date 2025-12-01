@@ -10,10 +10,12 @@ response text with the second argument.
 
 Set the following environment variables: 
 
-- `LLM_API_URL` – the chat/completions endpoint that accepts POST requests.
-- `LLM_API_KEY` – secret that will be sent as a bearer token.
-- `LLM_MODEL` – optional model name (defaults to `gpt-4o-mini`).
-- `LLM_API_TIMEOUT` – optional request timeout in seconds (defaults to 60).
+| Variable         | Description                                         |
+|------------------|-----------------------------------------------------|
+| `LLM_API_URL`   | the chat/completions endpoint that accepts POST requests. |
+| `LLM_API_KEY`   | secret that will be sent as a bearer token.         |
+| `LLM_MODEL`     | optional model name (defaults to `gpt-4o-mini`).    |
+| `LLM_API_TIMEOUT` | optional request timeout in seconds (defaults to 60). |
 
 ## Usage
 
