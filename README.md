@@ -6,6 +6,8 @@
 The predicate posts a prompt to an HTTP LLM endpoint and unifies the model's
 response text with the second argument.
 
+The library currently supports any OpenAI-compatible chat/completions endpoint.
+
 ## Installation
 
 ```sh
@@ -40,11 +42,6 @@ Output = "Bonjour !".
 Prompt = "What animal is man's best friend?",
 ...
 ```
-
-The request body is OpenAI-compatible (`{model: ..., messages: [...]}`) and
-can be tweaked inside `llm_request_body/2`. Likewise, parsing logic can be
-adjusted by editing `llm_extract_text/2` if you need to support a different
-response format.
 
 ### Reverse prompts
 
