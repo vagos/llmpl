@@ -1,4 +1,4 @@
-:- module(llm, [llm/2]).
+:- module(llm, [llm/2, llm/3, config/2]).
 
 /** <module> Simple LLM client
 
@@ -6,13 +6,14 @@ This module exposes the predicate llm/2, which posts a user prompt to
 an HTTP-based large language model (LLM) API and unifies the model's
 response with the second argument.
 
-Configuration is provided through environment variables.
-The library can be reused across different APIs.
+Configuration is split between a one-time config predicate and
+an API key environment variable. Optional per-call settings let you
+override the model name and timeout.
 
-  * `LLM_API_URL`     – required LLM endpoint accepting POST requests.
+  * `config/2`        – set the LLM endpoint and default model name.
   * `LLM_API_KEY`     – secret used to build a bearer token.
-  * `LLM_MODEL`       – (optional) model identifier, defaults to "gpt-4o-mini".
-  * `LLM_API_TIMEOUT` – (optional) request timeout in seconds, defaults to 60.
+  * `model/1`         – (optional) model identifier, defaults to the configured model.
+  * `timeout/1`       – (optional) request timeout in seconds, defaults to 60.
 
 The library assumes an OpenAI-compatible payload/response. To target a
 different API adjust llm_request_body/2 or llm_extract_text/2.
@@ -23,6 +24,10 @@ different API adjust llm_request_body/2 or llm_extract_text/2.
 :- use_module(library(http/http_client)).
 :- use_module(library(http/http_json)).
 :- use_module(library(http/http_ssl_plugin)).
+:- use_module(library(option)).
+
+:- dynamic llm_config_url/1.
+:- dynamic llm_config_model/1.
 
 %!  llm(+Input, -Output) is det.
 %
@@ -30,21 +35,29 @@ different API adjust llm_request_body/2 or llm_extract_text/2.
 %   Output with the assistant's response text.
 
 llm(Input, Output) :-
+    llm(Input, Output, []).
+
+%!  llm(+Input, -Output, +Options) is det.
+%
+%   Options may include model(Model) and timeout(Seconds).
+
+llm(Input, Output, Options) :-
+    llm_options(Options, Model, Timeout),
     (   var(Input)
     ->  ensure_prompt(Output, Target),
-        generate_prompt(Target, Prompt),
+        generate_prompt(Target, Options, Prompt),
         Input = Prompt,
         constrained_prompt(Target, Prompt, PromptWithConstraint),
-        llm_prompt_text(PromptWithConstraint, Text),
+        llm_prompt_text(PromptWithConstraint, Model, Timeout, Text),
         unify_text(Text, Output)
-    ;   llm_prompt_text(Input, Text),
+    ;   llm_prompt_text(Input, Model, Timeout, Text),
         unify_text(Text, Output)
     ).
 
-llm_prompt_text(Input, Text) :-
+llm_prompt_text(Input, Model, Timeout, Text) :-
     ensure_prompt(Input, Prompt),
-    llm_request_body(Prompt, Body),
-    llm_post_json(Body, Response),
+    llm_request_body(Prompt, Model, Body),
+    llm_post_json(Body, Timeout, Response),
     llm_extract_text(Response, Text).
 
 ensure_prompt(Input, Prompt) :-
@@ -57,19 +70,11 @@ ensure_prompt(Input, Prompt) :-
     ;   throw(error(type_error(text, Input), _))
     ).
 
-llm_request_body(Prompt, _{model:Model, messages:[_{role:'user', content:Prompt}]}) :-
-    llm_model(Model).
+llm_request_body(Prompt, Model, _{model:Model, messages:[_{role:'user', content:Prompt}]}).
 
-llm_model(Model) :-
-    (   getenv('LLM_MODEL', Raw), Raw \= ''
-    ->  ensure_string(Raw, Model)
-    ;   Model = "gpt-4o-mini"
-    ).
-
-llm_post_json(Body, Response) :-
+llm_post_json(Body, Timeout, Response) :-
     llm_endpoint(URL),
     llm_auth_header(Header),
-    llm_timeout(Timeout),
     Options = [
         request_header('Authorization'=Header),
         accept(json),
@@ -99,11 +104,12 @@ unify_text(Text, Output) :-
         Expected = Text
     ).
 
-generate_prompt(Target, Prompt) :-
+generate_prompt(Target, Options, Prompt) :-
     format(string(Request),
            "Provide a single user prompt that would make you reply with the exact text \"~w\". Return only the prompt.",
            [Target]),
-    llm_prompt_text(Request, Suggestion),
+    llm_options(Options, Model, Timeout),
+    llm_prompt_text(Request, Model, Timeout, Suggestion),
     ensure_prompt(Suggestion, Prompt).
 
 constrained_prompt(Target, Prompt, FinalPrompt) :-
@@ -112,9 +118,9 @@ constrained_prompt(Target, Prompt, FinalPrompt) :-
            [Target, Prompt]).
 
 llm_endpoint(URL) :-
-    (   getenv('LLM_API_URL', URL), URL \= ''
+    (   llm_config_url(URL), URL \= ''
     ->  true
-    ;   throw(error(existence_error(environment_variable, 'LLM_API_URL'), _))
+    ;   throw(error(existence_error(configuration, llm_url), _))
     ).
 
 llm_auth_header(Header) :-
@@ -124,11 +130,36 @@ llm_auth_header(Header) :-
     ;   throw(error(existence_error(environment_variable, 'LLM_API_KEY'), _))
     ).
 
-llm_timeout(Timeout) :-
-    (   getenv('LLM_API_TIMEOUT', Raw), Raw \= '',
-        catch(number_string(Timeout, Raw), _, fail)
-    ->  true
-    ;   Timeout = 60
+config(URL, Model) :-
+    ensure_string(URL, URLStr),
+    ensure_string(Model, ModelStr),
+    retractall(llm_config_url(_)),
+    retractall(llm_config_model(_)),
+    assertz(llm_config_url(URLStr)),
+    assertz(llm_config_model(ModelStr)).
+
+llm_options(Options, Model, Timeout) :-
+    (   is_list(Options)
+    ->  option(timeout(Timeout0), Options, 60),
+        option_model(Options, Model),
+        ensure_timeout(Timeout0, Timeout)
+    ;   throw(error(type_error(list, Options), _))
+    ).
+
+option_model(Options, Model) :-
+    (   option(model(Model0), Options)
+    ->  ensure_string(Model0, Model)
+    ;   (   llm_config_model(Configured)
+        ->  Model = Configured
+        ;   throw(error(existence_error(configuration, llm_model), _))
+        )
+    ).
+
+ensure_timeout(Value, Timeout) :-
+    (   number(Value)
+    ->  Timeout is Value
+    ;   ensure_string(Value, Text),
+        catch(number_string(Timeout, Text), _, throw(error(type_error(number, Value), _)))
     ).
 
 llm_extract_text(Response, Output) :-

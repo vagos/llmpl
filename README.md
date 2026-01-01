@@ -16,14 +16,21 @@ The library currently supports any OpenAI-compatible chat/completions endpoint.
 
 ## Configuration
 
-Set the following environment variables: 
+Some services require an API key for authentication.
+Set the `LLM_API_KEY` environment variable to your API key.
+You can do the following in your shell before starting SWI-Prolog:
+```
+echo LLM_API_KEY="sk-..." >> .env
+set -a && source .env && set +a
+```
 
-| Variable         | Description                                         |
-|------------------|-----------------------------------------------------|
-| `LLM_API_URL`   | the chat/completions endpoint that accepts POST requests. |
-| `LLM_API_KEY`   | secret that will be sent as a bearer token.         |
-| `LLM_MODEL`     | optional model name (defaults to `gpt-4o-mini`).    |
-| `LLM_API_TIMEOUT` | optional request timeout in seconds (defaults to 60). |
+Configure the endpoint and default model before calling `llm/2` or `llm/3`:
+
+```prolog
+?- config("https://api.openai.com/v1/chat/completions", "gpt-4o-mini").
+```
+
+You can override the configured model per call with `llm/3` options.
 
 ## Usage
 
@@ -38,10 +45,26 @@ swipl
 ?- llm("Say hello in French.", Output).
 Output = "Bonjour !".
 
+?- llm("Say hello in French.", Output, [model("gpt-4o-mini"), timeout(30)]).
+Output = "Bonjour !".
+
 ?- llm(Prompt, "Dog").
 Prompt = "What animal is man's best friend?",
 ...
 ```
+
+## Providers
+
+This library expects an OpenAI-compatible chat/completions endpoint.
+Below are common providers and endpoints you can try.
+
+OpenAI
+- Endpoint: `https://api.openai.com/v1/chat/completions`
+- Example: `?- config("https://api.openai.com/v1/chat/completions", "gpt-4o-mini").`
+
+Ollama (local)
+- Endpoint: `http://localhost:11434/v1/chat/completions`
+- Example: `?- config("http://localhost:11434/v1/chat/completions", "llama3.1").`
 
 ### Reverse prompts
 

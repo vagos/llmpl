@@ -1,5 +1,5 @@
 name('llmpl').
-version('0.1.0').
+version('0.2.0').
 title('Prolog library for interfacing with large language models.').
 author('Evangelos Lamprou', 'vagos@lamprou.xyz').
 
